@@ -11,7 +11,7 @@
         android:label="@string/app_name"
        android:theme="@style/AppTheme">
         <activity
-            android:name=".LoginActivity"
+            android:name=".firebase.LoginActivity"
             android:label="@string/app_name"
             android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
@@ -21,22 +21,24 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".MainActivity"
+        <activity android:name=".activity.MainActivity"
             android:theme="@style/AppTheme.NoActionBar"/>
 
         <activity
-            android:name=".AcercaDeActivity"
+            android:name=".activity.AcercaDeActivity"
             android:label="Acerca de ..."
             android:theme="@android:style/Theme.Dialog" />
         <activity
-            android:name=".PreferenciasActivity"
+            android:name=".activity.PreferenciasActivity"
             android:label="Preferencias" />
         <activity
-            android:name=".VistaLugarActivity"
+            android:name=".activity.VistaLugarActivity"
             android:label="Vista de un lugar" />
         <activity
-            android:name=".EdicionLugarActivity"
+            android:name=".activity.EdicionLugarActivity"
             android:label="Edición de un lugar" />
+        <activity android:name=".activity.UsuarioActivity"
+            android:label="Información sobre el usuario" />
         <!--
              The API key for Google Maps-based APIs is defined as a string resource.
              (See the file "res/values/google_maps_api.xml").
@@ -48,7 +50,7 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_key" />
-        <activity android:name=".MapaActivity"
+        <activity android:name=".activity.MapaActivity"
             android:label="Mapa"
             android:screenOrientation="portrait"/>
         <provider
@@ -58,7 +60,8 @@
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths"></meta-data>
+                android:resource="@xml/file_paths">
+            </meta-data>
         </provider>
     </application>
 
