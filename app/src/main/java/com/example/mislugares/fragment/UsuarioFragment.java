@@ -18,6 +18,7 @@ import com.android.volley.toolbox.ImageLoader;
 import com.android.volley.toolbox.NetworkImageView;
 import com.android.volley.toolbox.Volley;
 import com.example.mislugares.R;
+import com.example.mislugares.firebase.CustomLoginActivity;
 import com.example.mislugares.firebase.LoginActivity;
 import com.firebase.ui.auth.AuthUI;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -57,7 +58,8 @@ public class UsuarioFragment extends Fragment {
         cerrarSesion.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                AuthUI.getInstance().signOut(getActivity())
+                AuthUI.getInstance()
+                        .signOut(getActivity())
                         .addOnCompleteListener(new OnCompleteListener<Void>() {
                             @Override
                             public void onComplete(@NonNull Task<Void> task) {
@@ -66,6 +68,21 @@ public class UsuarioFragment extends Fragment {
                         });
             }
         });
+
+        //Unificar cuentas
+        Button unirCuenta = (Button) vista.findViewById(R.id.btn_unir_cuenta);
+        unirCuenta.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent i = new Intent(getActivity(), CustomLoginActivity.class);
+                i.putExtra("unificar", true);
+                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                        Intent.FLAG_ACTIVITY_NEW_TASK |
+                        Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(i);
+            }
+        });
+
 
         //Carga de imagen con Volley
         loadVolley();
@@ -81,7 +98,7 @@ public class UsuarioFragment extends Fragment {
     }
 
     private void goToLoginActivity(){
-        Intent i = new Intent(getActivity(), LoginActivity.class);
+        Intent i = new Intent(getActivity(), CustomLoginActivity.class);
         i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP |
                 Intent.FLAG_ACTIVITY_NEW_TASK |
                 Intent.FLAG_ACTIVITY_CLEAR_TASK);
