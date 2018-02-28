@@ -12,10 +12,13 @@ import com.example.mislugares.model.Lugar;
 import com.example.mislugares.R;
 import com.example.mislugares.fragment.SelectorFragment;
 import com.example.mislugares.model.TipoLugar;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 public class EdicionLugarActivity extends AppCompatActivity {
     private long id;
-    private long _id;
+    //private long _id;
+    private String _id;
     private Lugar lugar;
     private EditText nombre;
     private Spinner tipo;
@@ -30,11 +33,14 @@ public class EdicionLugarActivity extends AppCompatActivity {
         setContentView(R.layout.edicion_lugar);
         Bundle extras = getIntent().getExtras();
         id = extras.getLong("id", -1);
-        _id = extras.getLong("_id", -1);
-        if (_id!=-1) {
-            lugar = MainActivity.lugares.elemento((int) _id);
+        _id = extras.getString("_id", null);
+        if (_id!=null) {
+            lugar = new Lugar();
+            FirebaseUser usuario = FirebaseAuth.getInstance().getCurrentUser();
+            lugar.setCreador(usuario.getUid());
         } else {
-            lugar = SelectorFragment.adaptador.lugarPosicion((int) id);
+            lugar = SelectorFragment.getAdaptador().getItem((int) id);
+            _id= SelectorFragment.getAdaptador().getKey((int) id);
         }
         nombre = (EditText) findViewById(R.id.nombre);
         nombre.setText(lugar.getNombre());
@@ -52,7 +58,7 @@ public class EdicionLugarActivity extends AppCompatActivity {
         adaptador.setDropDownViewResource(android.R.layout.
                 simple_spinner_dropdown_item);
         tipo.setAdapter(adaptador);
-        tipo.setSelection(lugar.getTipo().ordinal());
+        tipo.setSelection(lugar.getTipoEnum().ordinal());
     }
 
     @Override
@@ -66,27 +72,18 @@ public class EdicionLugarActivity extends AppCompatActivity {
         switch (item.getItemId()) {
             case R.id.accion_cancelar:
                 if(getIntent().getExtras().getBoolean("nuevo", false)) {
-                    MainActivity.lugares.borrar((int) id);
+                    MainActivity.lugares.borrar(_id);
                 }
                 finish();
                 return true;
             case R.id.accion_guardar:
                 lugar.setNombre(nombre.getText().toString());
-                lugar.setTipo(TipoLugar.values()[tipo.getSelectedItemPosition()]);
+                lugar.setTipoEnum(TipoLugar.values()[tipo.getSelectedItemPosition()]);
                 lugar.setDireccion(direccion.getText().toString());
                 lugar.setTelefono(Integer.parseInt(telefono.getText().toString()));
                 lugar.setUrl(url.getText().toString());
                 lugar.setComentario(comentario.getText().toString());
-                if (_id==-1) {
-                    _id = SelectorFragment.adaptador.idPosicion((int) id);
-                }
-                MainActivity.lugares.actualiza((int) _id,lugar);
-                SelectorFragment.adaptador.setCursor(MainActivity.lugares.extraeCursor());
-                if (id!=-1) {
-                    SelectorFragment.adaptador.notifyItemChanged((int) id);
-                } else {
-                    SelectorFragment.adaptador.notifyDataSetChanged();
-                }
+                MainActivity.lugares.actualiza(_id,lugar);
                 finish();
                 return true;
             default:

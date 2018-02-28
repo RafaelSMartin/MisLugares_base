@@ -8,6 +8,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.StrictMode;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
@@ -19,16 +20,24 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
 
+import com.example.mislugares.model.Lugar;
 import com.example.mislugares.model.Lugares;
+import com.example.mislugares.model.LugaresAsinc;
 import com.example.mislugares.model.LugaresBD;
+import com.example.mislugares.model.LugaresFirebase;
+import com.example.mislugares.model.LugaresFirestore;
+import com.example.mislugares.model.LugaresVector;
 import com.example.mislugares.util.PermisosUtilidades;
 import com.example.mislugares.R;
 import com.example.mislugares.fragment.SelectorFragment;
 import com.example.mislugares.fragment.VistaLugarFragment;
+import com.example.mislugares.util.Preferencias;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 public class MainActivity extends AppCompatActivity implements LocationListener {
 
-    public static LugaresBD lugares;
+    //public static LugaresBD lugares;
+    public static LugaresAsinc lugares;
     private LocationManager manejador;
     private Location mejorLocaliz;
     private static final int SOLICITUD_PERMISO_LOCALIZACION = 0;
@@ -39,7 +48,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        lugares = new LugaresBD(this);
+
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         fragmentVista = (VistaLugarFragment) getSupportFragmentManager()
@@ -48,7 +57,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                long _id = lugares.nuevo();
+                //long _id = lugares.nuevo();
+                String _id=lugares.nuevo();
                 Intent i = new Intent(MainActivity.this, EdicionLugarActivity.class);
                 i.putExtra("_id", _id);
                 startActivity(i);
@@ -56,6 +66,28 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         });
         manejador = (LocationManager) getSystemService(LOCATION_SERVICE);
         ultimaLocalizazion();
+
+        Preferencias pref = Preferencias.getInstance();
+        pref.inicializa(this);
+        if (pref.usarFirestore()) {
+            lugares = new LugaresFirestore();
+        }
+        else {
+            lugares = new LugaresFirebase();
+        }
+
+        //permite descargar desde el hilo principal
+        StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder() .permitAll().build());
+
+        //cargarDatosFirestore();
+
+    }
+
+    private void cargarDatosFirestore(){
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        for (Lugar lugar: LugaresVector.ejemploLugares()){
+            db.collection("lugares").add(lugar);
+        }
     }
 
     @Override
@@ -82,11 +114,11 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         //noinspection SimplifiableIfStatement
-        if(id == R.id.action_settings) {
+        if  (id == R.id.action_settings) {
             lanzarPreferencias(null);
             return true;
         }
-        if(id == R.id. acercaDe) {
+        if (id == R.id. acercaDe) {
             lanzarAcercaDe(null);
             return true;
         }
@@ -94,11 +126,11 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             lanzarVistaLugar(null);
             return true;
         }
-        if(id == R.id.menu_mapa) {
+        if (id==R.id.menu_mapa) {
             Intent intent = new Intent(this, MapaActivity.class);
             startActivity(intent);
         }
-        if(id == R.id.menu_usuario){
+        if (id == R.id.menu_usuario) {
             Intent intent = new Intent(this, UsuarioActivity.class);
             startActivity(intent);
         }
@@ -131,7 +163,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     void ultimaLocalizazion() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.
-            ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             if (manejador.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 actualizaMejorLocaliz(manejador.getLastKnownLocation(
                         LocationManager.GPS_PROVIDER));
@@ -142,8 +174,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             }
         } else {
             PermisosUtilidades.solicitarPermiso(Manifest.permission.ACCESS_FINE_LOCATION,
-                "Sin permiso de localización no es posible mostrar la distancia" +
-                " a los lugares.", SOLICITUD_PERMISO_LOCALIZACION, this);
+                    "Sin permiso de localización no es posible mostrar la distancia" +
+                            " a los lugares.", SOLICITUD_PERMISO_LOCALIZACION, this);
         }
     }
 
@@ -182,7 +214,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         } else {
             PermisosUtilidades.solicitarPermiso(Manifest.permission.ACCESS_FINE_LOCATION,
                     "Sin el permiso localización no puedo mostrar la distancia"+
-                    " a los lugares.", SOLICITUD_PERMISO_LOCALIZACION, this);
+                            " a los lugares.", SOLICITUD_PERMISO_LOCALIZACION, this);
         }
     }
 
@@ -197,7 +229,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     @Override public void onLocationChanged(Location location) {
         Log.d(Lugares.TAG, "Nueva localización: "+location);
         actualizaMejorLocaliz(location);
-        //adaptador.notifyDataSetChanged();
         SelectorFragment.adaptador.notifyDataSetChanged();
     }
 
@@ -238,7 +269,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     protected void onActivityResult(int requestCode, int resultCode,
                                     Intent data) {
         if (requestCode == RESULTADO_PREFERENCIAS) {
-            SelectorFragment.adaptador.setCursor(MainActivity.lugares.extraeCursor());
+            //SelectorFragment.adaptador.setCursor(MainActivity.lugares.extraeCursor());
             SelectorFragment.adaptador.notifyDataSetChanged();
         }
     }

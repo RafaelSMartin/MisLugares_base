@@ -15,6 +15,7 @@ import android.widget.EditText;
 
 import com.example.mislugares.R;
 import com.example.mislugares.activity.MainActivity;
+import com.example.mislugares.model.Usuarios;
 import com.facebook.AccessToken;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
@@ -56,14 +57,13 @@ import com.twitter.sdk.android.core.identity.TwitterLoginButton;
 
 public class CustomLoginActivity extends FragmentActivity implements GoogleApiClient.OnConnectionFailedListener {
     private FirebaseAuth auth = FirebaseAuth.getInstance();
-    private String correo = "";
-    private String contraseña = "";
+    private String correo = ""; private String contraseña = "";
     private ViewGroup contenedor;
     private EditText etCorreo, etContraseña;
     private TextInputLayout tilCorreo, tilContraseña;
     private ProgressDialog dialogo;
 
-    private static final int RC_GOOGLE_SIGN_IN = 123; 
+    private static final int RC_GOOGLE_SIGN_IN = 123;
     private GoogleApiClient googleApiClient;
 
     private CallbackManager callbackManager;
@@ -73,79 +73,61 @@ public class CustomLoginActivity extends FragmentActivity implements GoogleApiCl
 
     private boolean unificar;
 
-    protected void onCreate(Bundle savedInstanceState){
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         FacebookSdk.sdkInitialize(this);
+
         Twitter.initialize(new TwitterConfig.Builder(this)
-            .logger(new DefaultLogger(Log.DEBUG))
-            .twitterAuthConfig(new TwitterAuthConfig(getString(R.string.twitter_consumer_key),
-                getString(R.string.twitter_consumer_secret)))
-            .debug(true)
-            .build());
-        unificar = getIntent().getBooleanExtra("unificar", false);
+                .logger(new DefaultLogger(Log.DEBUG))
+                .twitterAuthConfig(new TwitterAuthConfig(getString(R.string. twitter_consumer_key), getString(R.string.twitter_consumer_secret)))
+                .debug(true)
+                .build());
+
         setContentView(R.layout.activity_custom_login);
 
-        etCorreo = (EditText)findViewById(R.id.correo);
+        etCorreo = (EditText) findViewById(R.id.correo);
         etContraseña = (EditText) findViewById(R.id.contraseña);
         tilCorreo = (TextInputLayout) findViewById(R.id.til_correo);
         tilContraseña = (TextInputLayout) findViewById(R.id.til_contraseña);
         contenedor = (ViewGroup) findViewById(R.id.contenedor);
-        
-        initGoogle();
-        initFacebook();
-        initTwitter();
-
         dialogo = new ProgressDialog(this);
-        dialogo.setTitle("Verificando ususario");
-        dialogo.setMessage("Por favor esper...");
-        verificaSiUsuarioValidado();
+        dialogo.setTitle("Verificando Usuario");
+        dialogo.setMessage("Por favor espere...");
 
-    }
+        //Google
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder( GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(getString(R.string.default_web_client_id))
+                .requestEmail()
+                .build();
+        googleApiClient = new GoogleApiClient.Builder(this)
+                .enableAutoManage(this , this)
+                .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
+                .build();
 
-    public void reestablecerContraseña(View v){
-        correo = etCorreo.getText().toString();
-        tilCorreo.setError("");
-        if(correo.isEmpty()){
-            tilCorreo.setError("Introduce un correo");
-        } else if (!correo.matches(".+@.+[.].+")){
-            tilCorreo.setError("Correo no valido");
-        } else{
-            dialogo.show();
-            auth.sendPasswordResetEmail(correo)
-                    .addOnCompleteListener(new OnCompleteListener<Void>() {
-                        @Override
-                        public void onComplete(@NonNull Task<Void> task) {
-                            dialogo.dismiss();
-                            if(task.isSuccessful()){
-                                mensaje("Verifica tu correo para cambiar contraseña");
-                            } else{
-                                mensaje("Error al mandar el correo para cambiar contraseña");
-                            }
-                        }
-                    });
-        }
-    }
+        //Facebook
+        callbackManager = CallbackManager.Factory.create();
+        btnFacebook = (LoginButton) findViewById(R.id.facebook);
+        btnFacebook.setReadPermissions("email", "public_profile");
+        btnFacebook.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
+            @Override
+            public void onSuccess(LoginResult loginResult) {
+                facebookAuth(loginResult.getAccessToken());
+            }
 
-    public void autentificacionAnonima(View v){
-        dialogo.show();
-        auth.signInAnonymously()
-                .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
-                    @Override
-                    public void onComplete(@NonNull Task<AuthResult> task) {
-                        if(task.isSuccessful()){
-                            verificaSiUsuarioValidado();
-                        } else{
-                            dialogo.dismiss();
-                            Log.w("MisLugares", "Error en signInAnonymously",
-                                    task.getException());
-                            mensaje("ERROR al intentar entrar de forma anonima");
-                        }
-                    }
-                });
-    }
+            @Override
+            public void onCancel() {
+                mensaje("Cancelada autentificación con facebook");
+            }
 
-    private void initTwitter() {
-        btnTwitter = (TwitterLoginButton)findViewById(R.id.twitter);
+            @Override
+            public void onError(FacebookException error) {
+                mensaje(error.getLocalizedMessage());
+            }
+        });
+
+        //Twitter
+        btnTwitter = (TwitterLoginButton) findViewById(R.id.twitter);
         btnTwitter.setCallback(new Callback<TwitterSession>() {
             @Override
             public void success(Result<TwitterSession> result) {
@@ -157,171 +139,30 @@ public class CustomLoginActivity extends FragmentActivity implements GoogleApiCl
                 mensaje(exception.getLocalizedMessage());
             }
         });
+
+        //Unificar
+        unificar = getIntent().getBooleanExtra("unificar", false);
+
         verificaSiUsuarioValidado();
     }
-
-    private void twitterAuth(TwitterSession session) {
-        AuthCredential credential = TwitterAuthProvider.getCredential(
-                session.getAuthToken().token,
-                session.getAuthToken().secret);
-
-        if(unificar){
-            unificarCon(credential);
-        } else {
-            auth.signInWithCredential(credential)
-                    .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
-                        @Override
-                        public void onComplete(@NonNull Task<AuthResult> task) {
-                            if (!task.isSuccessful()) {
-                                mensaje(task.getException().getLocalizedMessage());
-                            } else {
-                                verificaSiUsuarioValidado();
-                            }
-                        }
-                    });
-        }
-    }
-
-    private void initFacebook() {
-        callbackManager = CallbackManager.Factory.create();
-        btnFacebook = (LoginButton)findViewById(R.id.facebook);
-        btnFacebook.setReadPermissions("email", "public_profile");
-        btnFacebook.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
-            @Override
-            public void onSuccess(LoginResult loginResult) {
-                facebookAuth(loginResult.getAccessToken());
-            }
-
-            @Override
-            public void onCancel() {
-                mensaje("Cancelada autentificacion con facebook");
-            }
-
-            @Override
-            public void onError(FacebookException error) {
-                mensaje(error.getLocalizedMessage());
-            }
-        });
-        verificaSiUsuarioValidado();
-    }
-
-    private void facebookAuth(AccessToken accessToken) {
-        final AuthCredential credential = FacebookAuthProvider.getCredential(
-                accessToken.getToken());
-
-        if(unificar){
-            unificarCon(credential);
-        } else {
-            auth.signInWithCredential(credential)
-                    .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
-                        @Override
-                        public void onComplete(@NonNull Task<AuthResult> task) {
-                            if (!task.isSuccessful()) {
-                                if (task.getException() instanceof FirebaseAuthUserCollisionException) {
-                                    LoginManager.getInstance().logOut();
-                                }
-                                mensaje(task.getException().getLocalizedMessage());
-                            } else {
-                                verificaSiUsuarioValidado();
-                            }
-                        }
-                    });
-        }
-    }
-
-    private void initGoogle() {
-        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(
-                GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(getString(R.string.default_web_client_id))
-                .requestEmail() .build();
-        googleApiClient = new GoogleApiClient.Builder(this)
-                .enableAutoManage(this , this)
-                .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
-                .build();
-    }
-
-    private void googleAuth(GoogleSignInAccount acct) {
-        AuthCredential credential = GoogleAuthProvider.getCredential(
-                acct.getIdToken(), null);
-
-        if(unificar){
-            unificarCon(credential);
-        } else {
-            auth.signInWithCredential(credential)
-                    .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
-                        @Override
-                        public void onComplete(@NonNull Task<AuthResult> task) {
-                            if (!task.isSuccessful()) {
-                                mensaje(task.getException().getLocalizedMessage());
-                            } else {
-                                verificaSiUsuarioValidado();
-                            }
-                        }
-                    });
-        }
-    }
-
-    private void unificarCon(AuthCredential credential) {
-        auth.getCurrentUser().linkWithCredential(credential)
-                .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
-                    @Override
-                    public void onComplete(@NonNull Task<AuthResult> task) {
-                        if(task.isSuccessful()){
-                            unificar = false;
-                            verificaSiUsuarioValidado();
-                        } else{
-                            Log.w("MisLugares", "Error en linkWithCredential",
-                                    task.getException());
-                            mensaje("Error al unificar cuentas");
-                        }
-                    }
-                });
-    }
-
-    public void autentificarGoogle(View v){
-        Intent i = Auth.GoogleSignInApi.getSignInIntent(googleApiClient);
-        startActivityForResult(i, RC_GOOGLE_SIGN_IN);
-    }
-
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data){
-        super.onActivityResult(requestCode, resultCode, data);
-        if(requestCode == RC_GOOGLE_SIGN_IN){
-            if(resultCode == RESULT_OK){
-                GoogleSignInResult result = Auth.GoogleSignInApi
-                        .getSignInResultFromIntent(data);
-                if(result.isSuccess()){
-                    googleAuth(result.getSignInAccount());
-                } else{
-                    mensaje("Error de autentificacion con Google");
-                }
-            }
-        } else if (requestCode == btnFacebook.getRequestCode()){
-            callbackManager.onActivityResult(requestCode, resultCode, data);
-        } else if (requestCode == TwitterAuthConfig.DEFAULT_AUTH_REQUEST_CODE){
-            btnTwitter.onActivityResult(requestCode, resultCode, data);
-        }
-    }
-
-
 
     private void verificaSiUsuarioValidado() {
-        if(!unificar && auth.getCurrentUser() != null){
+        if (!unificar && auth.getCurrentUser() != null) {
+            Usuarios.guardarUsuario(auth.getCurrentUser(), this.getApplicationContext());
             Intent i = new Intent(this, MainActivity.class);
-            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP |
-                    Intent.FLAG_ACTIVITY_NEW_TASK |
-                    Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(i);
             finish();
         }
     }
 
-    public void inicioSesionCorreo(View v){
-        if(verificaCampos()){
+    public void inicioSesiónCorreo(View v) {
+        if (verificaCampos()) {
             if(unificar){
-                AuthCredential credential = EmailAuthProvider.getCredential(correo, contraseña);
+                AuthCredential credential= EmailAuthProvider.getCredential(correo,contraseña);
                 unificarCon(credential);
-            } else {
+            }
+            else {
                 dialogo.show();
                 auth.signInWithEmailAndPassword(correo, contraseña)
                         .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
@@ -339,7 +180,7 @@ public class CustomLoginActivity extends FragmentActivity implements GoogleApiCl
         }
     }
 
-    public void registroCorreo(View v){
+    public void registroCorreo(View v) {
         if (verificaCampos()) {
             dialogo.show();
             auth.createUserWithEmailAndPassword(correo, contraseña)
@@ -348,7 +189,8 @@ public class CustomLoginActivity extends FragmentActivity implements GoogleApiCl
                         public void onComplete(@NonNull Task<AuthResult> task) {
                             if (task.isSuccessful()) {
                                 verificaSiUsuarioValidado();
-                            } else {
+                            }
+                            else {
                                 dialogo.dismiss();
                                 mensaje(task.getException().getLocalizedMessage());
                             }
@@ -357,28 +199,34 @@ public class CustomLoginActivity extends FragmentActivity implements GoogleApiCl
         }
     }
 
-    private void mensaje(String mensaje){
+    private void mensaje(String mensaje) {
         Snackbar.make(contenedor, mensaje, Snackbar.LENGTH_LONG).show();
     }
 
-    private boolean verificaCampos(){
+    private boolean verificaCampos() {
         correo = etCorreo.getText().toString();
         contraseña = etContraseña.getText().toString();
         tilCorreo.setError("");
         tilContraseña.setError("");
         if (correo.isEmpty()) {
             tilCorreo.setError("Introduce un correo");
-        } else if (!correo.matches(".+@.+[.].+")) {
+        }
+        else if (!correo.matches(".+@.+[.].+")) {
             tilCorreo.setError("Correo no válido");
-        } else if (contraseña.isEmpty()) {
+        }
+        else if (contraseña.isEmpty()) {
             tilContraseña.setError("Introduce una contraseña");
-        } else if (contraseña.length()<6) {
+        }
+        else if (contraseña.length()<6) {
             tilContraseña.setError("Ha de contener al menos 6 caracteres");
-        } else if (!contraseña.matches(".*[0-9].*")) {
+        }
+        else if (!contraseña.matches(".*[0-9].*")) {
             tilContraseña.setError("Ha de contener un número");
-        } else if (!contraseña.matches(".*[A-Z].*")) {
+        }
+        else if (!contraseña.matches(".*[A-Z].*")) {
             tilContraseña.setError("Ha de contener una letra mayúscula");
-        } else {
+        }
+        else {
             return true;
         }
         return false;
@@ -388,8 +236,160 @@ public class CustomLoginActivity extends FragmentActivity implements GoogleApiCl
         startActivity(new Intent(this, LoginActivity.class));
     }
 
+    public void autentificarGoogle(View v) {
+        Intent i = Auth.GoogleSignInApi.getSignInIntent(googleApiClient);
+        startActivityForResult(i, RC_GOOGLE_SIGN_IN);
+    }
+
+    private void googleAuth(GoogleSignInAccount acct) {
+        AuthCredential credential = GoogleAuthProvider.getCredential( acct.getIdToken(), null);
+        if(unificar){
+            unificarCon(credential);
+        }
+        else {
+            auth.signInWithCredential(credential)
+                    .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                        @Override
+                        public void onComplete(@NonNull Task<AuthResult> task) {
+                            if (!task.isSuccessful()) {
+                                mensaje(task.getException().getLocalizedMessage());
+                            } else {
+                                verificaSiUsuarioValidado();
+                            }
+                        }
+                    });
+        }
+    }
+
+    private void facebookAuth(AccessToken accessToken) {
+        final AuthCredential credential = FacebookAuthProvider.getCredential( accessToken.getToken());
+        if(unificar){
+            unificarCon(credential);
+        }
+        else {
+            auth.signInWithCredential(credential)
+                    .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                        @Override
+                        public void onComplete(@NonNull Task<AuthResult> task) {
+                            if (!task.isSuccessful()) {
+                                if (task.getException() instanceof FirebaseAuthUserCollisionException) {
+                                    LoginManager.getInstance().logOut();
+                                }
+                                mensaje(task.getException().getLocalizedMessage());
+                            } else {
+                                verificaSiUsuarioValidado();
+                            }
+                        }
+                    });
+        }
+    }
+
+    private void twitterAuth(TwitterSession session) {
+        AuthCredential credential = TwitterAuthProvider.getCredential( session.getAuthToken().token, session.getAuthToken().secret);
+        if(unificar){
+            unificarCon(credential);
+        }
+        else {
+            auth.signInWithCredential(credential)
+                    .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                        @Override
+                        public void onComplete(@NonNull Task<AuthResult> task) {
+                            if (!task.isSuccessful()) {
+                                mensaje(task.getException().getLocalizedMessage());
+                            } else {
+                                verificaSiUsuarioValidado();
+                            }
+                        }
+                    });
+        }
+    }
+
+    public void autentificacionAnonima(View v) {
+        dialogo.show();
+        auth.signInAnonymously()
+                .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<AuthResult> task) {
+                        if (task.isSuccessful()) {
+                            verificaSiUsuarioValidado();
+                        } else {
+                            dialogo.dismiss();
+                            Log.w("MisLugares", "Error en signInAnonymously", task.getException());
+                            mensaje("ERROR al intentarentrar de forma anónima");
+                        }
+                    }
+                });
+    }
+
+    private void unificarCon(AuthCredential credential) {
+        auth.getCurrentUser()
+                .linkWithCredential(credential)
+                .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<AuthResult> task) {
+                        if (task.isSuccessful()) {
+                            unificar = false;
+                            verificaSiUsuarioValidado();
+                        }
+                        else {
+                            Log.w("MisLugares", "Error en linkWithCredential", task.getException());
+                            mensaje("Error al unificar cuentas.");
+                        }
+                    }
+                });
+    }
+
+    public void reestablecerContrasenya(View v) {
+        correo = etCorreo.getText().toString();
+        tilCorreo.setError("");
+        if (correo.isEmpty()) {
+            tilCorreo.setError("Introduce un correo");
+        }
+        else if (!correo.matches(".+@.+[.].+")) {
+            tilCorreo.setError("Correo no válido");
+        }
+        else {
+            dialogo.show();
+            auth.sendPasswordResetEmail(correo)
+                    .addOnCompleteListener(new OnCompleteListener<Void>() {
+                        @Override
+                        public void onComplete(@NonNull Task<Void> task) {
+                            dialogo.dismiss();
+                            if (task.isSuccessful()) {
+                                mensaje("Verifica tu correo para cambiar contraseña.");
+                            }
+                            else {
+                                mensaje("ERROR al mandar correo para cambiar contraseña");
+                            }
+                        }
+                    });
+        }
+    }
+
     @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-        mensaje("Error de autentificacion de Google");
+    public void onConnectionFailed(@NonNull ConnectionResult result) {
+        mensaje("Error de autentificación con Google");
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == RC_GOOGLE_SIGN_IN) {
+            if (resultCode == RESULT_OK ) {
+                GoogleSignInResult result = Auth.GoogleSignInApi .getSignInResultFromIntent(data);
+                if (result.isSuccess()) {
+                    googleAuth(result.getSignInAccount());
+                }
+                else {
+                    mensaje("Error de autentificación con Google");
+                }
+            }
+        }
+        else if (requestCode == btnFacebook.getRequestCode()) {
+            callbackManager.onActivityResult(requestCode, resultCode, data);
+        }
+        else if (requestCode == TwitterAuthConfig.DEFAULT_AUTH_REQUEST_CODE) {
+            btnTwitter.onActivityResult(requestCode, resultCode, data);
+        }
     }
 }

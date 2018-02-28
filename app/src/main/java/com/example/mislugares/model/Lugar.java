@@ -12,6 +12,10 @@ public class Lugar {
     private float valoracion;
     private TipoLugar tipo;
 
+    private long n_valoraciones;
+
+    private String creador;
+
 
     public Lugar(String nombre, String direccion, double longitud,
                  double latitud, int telefono, String url, String comentario,
@@ -24,7 +28,9 @@ public class Lugar {
         this.url = url;
         this.comentario = comentario;
         this.valoracion = valoracion;
+        this.n_valoraciones=0;
     }
+
     public Lugar() {
         fecha = System.currentTimeMillis();
         posicion = new GeoPunto(0, 0);
@@ -119,12 +125,38 @@ public class Lugar {
         this.valoracion = valoracion;
     }
 
-    public TipoLugar getTipo() {
+    public TipoLugar getTipoEnum() {
         return tipo;
     }
 
-    public void setTipo(TipoLugar tipo) {
+    public void setTipoEnum(TipoLugar tipo) {
         this.tipo = tipo;
+    }
+
+    public String getTipo(){
+        if(tipo==null) return null;
+        else return tipo.name();
+    }
+
+    public void setTipo(String nombre){
+        if(nombre==null) tipo=null;
+        else tipo=TipoLugar.valueOf(nombre);
+    }
+
+    public long getN_valoraciones() {
+        return n_valoraciones;
+    }
+
+    public void setN_valoraciones(long n_valoraciones) {
+        this.n_valoraciones = n_valoraciones;
+    }
+
+    public String getCreador() {
+        return creador;
+    }
+
+    public void setCreador(String creador) {
+        this.creador = creador;
     }
 
     public Lugar(String nombre, String direccion, double longitud,
@@ -139,5 +171,8 @@ public class Lugar {
         this.url = url;
         this.comentario = comentario;
         this.valoracion = valoracion;
+        this.n_valoraciones=0;
     }
+
+
 }
